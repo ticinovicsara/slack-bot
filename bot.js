@@ -2,10 +2,25 @@ require("dotenv").config();
 const { App } = require("@slack/bolt");
 const { google } = require("googleapis");
 const fuzzy = require("fuzzy");
+const express = require("express");
 
 const app = new App({
   token: process.env.SLACK_BOT_TOKEN,
   signingSecret: process.env.SLACK_SIGNING_SECRET,
+  logLevel: "debug",
+});
+
+const appServer = express();
+appServer.use(express.json());
+
+appServer.post("/", async (req, res) => {
+  console.log("Primljen POST zahtjev:", req.body);
+  if (req.body.challenge) {
+    console.log("Primljen challenge request:", req.body.challenge);
+    return res.status(200).send(req.body.challenge);
+  }
+
+  res.status(404).send("Not found");
 });
 
 const auth = new google.auth.GoogleAuth({
@@ -36,7 +51,6 @@ async function getItems() {
   }
 }
 
-// Pretraga sličnih unosa
 function getLikelyItems(query) {
   const names = cachedItems.map((item) => item.name);
   const results = fuzzy.filter(query, names);
@@ -49,34 +63,32 @@ function getLikelyItems(query) {
     .slice(0, 10);
 }
 
-// Obrada poruka
-app.message(async ({ message, say }) => {
-  console.log("Primljena poruka:", message);
-  const userText = message.text.trim().toLowerCase();
+app.event("app_mention", async ({ event, say }) => {
+  console.log("Spomenuta poruka je primljena:", event);
 
-  if (userText === "refresh") {
-    cachedItems = await getItems();
-    await say("🔄 Podaci su osvježeni!");
-    return;
+  const userText = event.text.trim().toLowerCase();
+  if (userText.includes("kalkulator")) {
+    console.log("Reagira na kalkulator");
+    await say("🔢 Kalkulator je u ladici ispod stola!");
+  } else if (userText.includes("kaiš")) {
+    console.log("Reagira na kaiš");
+    await say("👗 Kaiš je u ormaru!");
+  } else {
+    console.log("Ne prepoznajem tekst");
+    await say(
+      "Izgleda da nisam razumio što tražiš. Pokušaj s nekim od podataka."
+    );
   }
-
-  const matches = getLikelyItems(userText);
-  if (matches.length === 0) {
-    await say(`❌ Nema rezultata za _${userText}_`);
-    return;
-  }
-
-  let response = `🔍 Pronađeni rezultati za _${userText}_:\n`;
-  matches.forEach((item) => {
-    response += `- *${item.item.name}*: ${item.item.location}\n`;
-  });
-
-  await say(response);
 });
 
-// Pokretanje bota
 (async () => {
   cachedItems = await getItems();
+  console.log("Bot podaci učitani:", cachedItems);
+
+  appServer.listen(3000, () => {
+    console.log("⚡ Web server pokrenut na portu 3000");
+  });
+
   await app.start(8080);
-  console.log("⚡ Slack bot je pokrenut!");
+  console.log("⚡ Slack bot je pokrenut na 8080!");
 })();
