@@ -1,4 +1,6 @@
-const { google } = require("googleapis");
+import { google } from "googleapis";
+import dotenv from "dotenv";
+dotenv.config();
 
 const auth = new google.auth.GoogleAuth({
   keyFile: process.env.GOOGLE_CREDENTIALS,
@@ -8,7 +10,7 @@ const sheets = google.sheets({ version: "v4", auth });
 
 let cachedItems = [];
 
-async function refreshCache() {
+export async function refreshCache() {
   try {
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: process.env.GOOGLE_SHEET_ID,
@@ -25,18 +27,14 @@ async function refreshCache() {
       name: row[0],
       location: row[1] || "Nepoznata lokacija",
     }));
-
-    console.log(
-      `✅ Podaci su osvježeni! ${cachedItems.length} stavki učitano.`
-    );
   } catch (error) {
     console.error("Greska u dohvacanju Sheets podataka:", error);
     return [];
   }
 }
 
-function getItems() {
+export function getItems() {
   return cachedItems;
 }
 
-module.exports = { getItems, refreshCache };
+refreshCache();
