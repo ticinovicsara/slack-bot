@@ -24,8 +24,6 @@ app.event("app_mention", async ({ event, say }) => {
 
   let words = query.split(/\s+/).filter((word) => word.trim() !== "");
 
-  console.log(words);
-
   if (words.includes("refresh")) {
     refreshCache();
     return;
