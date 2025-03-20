@@ -6,9 +6,9 @@ const auth = new google.auth.GoogleAuth({
 });
 const sheets = google.sheets({ version: "v4", auth });
 
-export let cachedItems = new Map();
+let cachedItems = [];
 
-async function getItems() {
+async function refreshCache() {
   try {
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: process.env.GOOGLE_SHEET_ID,
@@ -16,29 +16,27 @@ async function getItems() {
     });
 
     const rows = response.data.values;
-    if (!rows) return [];
+    if (!rows) {
+      console.log("Nema podataka u tablici.");
+      return;
+    }
 
-    rows.slice(1).forEach((row) => {
-      const itemName = row[0];
-      const itemLocation = row[1];
+    cachedItems = rows.slice(1).map((row) => ({
+      name: row[0],
+      location: row[1] || "Nepoznata lokacija",
+    }));
 
-      if (cachedItems.has(itemName)) {
-        let existingItem = cachedItems.get(itemName);
-        if (existingItem.location !== itemLocation) {
-          console.log(`Azuriram stavku: ${itemName}`);
-          cachedItems.set(itemName, { name: itemName, location: itemLocation });
-        }
-      } else {
-        console.log(`Dodajem novu stavku: ${itemName}`);
-        cachedItems.set(itemName, { name: itemName, location: itemLocation });
-      }
-    });
+    console.log(
+      `✅ Podaci su osvježeni! ${cachedItems.length} stavki učitano.`
+    );
   } catch (error) {
     console.error("Greska u dohvacanju Sheets podataka:", error);
     return [];
   }
 }
 
-export function getItems() {
-  return Array.from(cachedItems.values());
+function getItems() {
+  return cachedItems;
 }
+
+module.exports = { getItems, refreshCache };
